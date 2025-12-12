@@ -1,0 +1,225 @@
+import pygame
+import os
+import random
+
+pygame.font.init()
+
+#game window dimensions / name
+WIDTH, HEIGHT = 1280, 540
+WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Autobahn Rat")
+
+#colors (sky blue is custom due to background blending)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+SKY_BLUE = (30, 198, 226)
+
+#to keep highscore data
+class HighScore:
+    def __init__(self):
+        self.high_score = self.load_high_score()
+
+    def load_high_score(self):
+        try:
+            with open("highscore.txt", "r") as f:
+                return float(f.read())
+        except:
+            return 0
+
+    def save_high_score(self):
+        with open("highscore.txt", "w") as f:
+            f.write(str(int(self.high_score)))
+
+    def update(self, distance):
+        if distance > self.high_score:
+            self.high_score = distance
+
+# road and lane setup
+BORDER = pygame.Rect(0, HEIGHT//2 + 60, WIDTH, 2)
+LANE_Y_POSITIONS = [
+    HEIGHT//2 + 145,
+    HEIGHT//2 + 180,
+]
+
+#fonts for health and winner
+HEALTH_FONT = pygame.font.SysFont('comic sans', 40)
+CRASHED_FONT = pygame.font.SysFont('comic sans', 100)
+
+#crash screen breaking image
+CRASH_IMAGE = pygame.image.load(os.path.join("Assets", '58e9209beb97430e8190650e.png')).convert_alpha()
+
+#game settings and car speed (36 VEL keeps the car exactly in between 2 lanes when move keys pressed)
+FPS = 60
+VEL = 36
+SCROLL_SPEED = 10
+
+# car dimensions
+CAR_WIDTH, CAR_HEIGHT = 200, 120
+
+# load cars
+BLUE_CAR = pygame.transform.scale(
+    pygame.image.load(os.path.join('Assets', 'Retro_Blue_Compact_Car_in_Pixel_Art-removebg-preview.png')),
+    (CAR_WIDTH, CAR_HEIGHT))
+
+RED_CAR = pygame.transform.scale(
+    pygame.image.load(os.path.join('Assets', 'ChatGPT_Image_Dec_4__2025__01_45_35_AM-removebg-preview.png')),
+    (CAR_WIDTH, CAR_HEIGHT))
+
+GREEN_CAR = pygame.transform.scale(
+    pygame.image.load(os.path.join('Assets', 'ChatGPT_Image_Dec_4__2025__01_52_49_AM-removebg-preview.png')),
+    (CAR_WIDTH, CAR_HEIGHT))
+
+YELLOW_CAR = pygame.transform.scale(
+    pygame.image.load(os.path.join('Assets', 'Pixel_Art_Yellow_Compact_Car-removebg-preview.png')),
+    (CAR_WIDTH, CAR_HEIGHT))
+
+ENEMY_CAR_IMAGES = [BLUE_CAR, RED_CAR, GREEN_CAR]
+
+# events = car spawning and collision detector
+YELLOW_HIT = pygame.USEREVENT + 1
+SPAWN_CAR = pygame.USEREVENT + 3
+pygame.time.set_timer(SPAWN_CAR, 1500)
+
+SPACE = pygame.transform.scale(
+    pygame.image.load(os.path.join('Assets', 'Background.png')),
+    (WIDTH, HEIGHT)
+)
+
+#game window
+class DrawWindow:
+    @staticmethod
+    def draw_window(yellow, health, enemy_cars, bg_x, distance, high_score):
+        WIN.blit(SPACE, (bg_x, 0))
+        WIN.blit(SPACE, (bg_x + WIDTH, 0))
+
+        #background blended border for the car to stay in road = invinsible barrier
+        pygame.draw.rect(WIN, SKY_BLUE, BORDER)
+
+        health_text = HEALTH_FONT.render(f"Health: {health}", 1, WHITE)
+        distance_text = HEALTH_FONT.render(f"Distance: {int(distance)} m", 1, WHITE)
+        highscore_text = HEALTH_FONT.render(f"Personal Best: {int(high_score)} m", 1, WHITE)
+
+        WIN.blit(health_text, (10, 10))
+        WIN.blit(distance_text, (10, 50))
+        WIN.blit(highscore_text, (10, 90))
+
+        # depth sorting for the car not to overlap cars on the bottom lane: lane closer to the player / viewer
+        cars_to_draw = [{"rect": yellow, "image": YELLOW_CAR}]
+
+        for car in enemy_cars:
+            cars_to_draw.append({
+                "rect": car["rect"],
+                "image": car["image"]
+            })
+
+        cars_to_draw.sort(key=lambda c: c["rect"].bottom)
+
+
+        for car in cars_to_draw:
+            WIN.blit(car["image"], (car["rect"].x, car["rect"].y))
+
+        pygame.display.update()
+
+#car movement
+class Player:
+    @staticmethod
+    def yellow_handle_movement(keys, yellow):
+        old_x, old_y = yellow.x, yellow.y
+
+        if keys[pygame.K_w] and yellow.y - VEL > 0:
+            yellow.y -= VEL
+        if keys[pygame.K_s] and yellow.y + VEL + yellow.height < HEIGHT - 15:
+            yellow.y += VEL
+        if keys[pygame.K_UP] and yellow.y - VEL > 0:
+            yellow.y -= VEL
+        if keys[pygame.K_DOWN] and yellow.y + VEL + yellow.height < HEIGHT - 15:
+            yellow.y += VEL
+
+        if yellow.colliderect(BORDER):
+            yellow.x, yellow.y = old_x, old_y
+
+#crash screen text
+class CrashScreen:
+    @staticmethod
+    def draw_whencrashed(text):
+        draw_text = CRASHED_FONT.render(text, 1, RED)
+        WIN.blit(draw_text, (WIDTH/2 - draw_text.get_width()/2,
+                            HEIGHT/2 - draw_text.get_height()/2))
+
+        rect = CRASH_IMAGE.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        WIN.blit(CRASH_IMAGE, rect)
+
+        pygame.display.update()
+        pygame.time.delay(5000)
+
+#game loop with background scrolling (looping) and cars spawning
+def main():
+    yellow = pygame.Rect(100, HEIGHT//2 + 120, CAR_WIDTH, CAR_HEIGHT)
+
+    yellow_health = 3
+    bg_x = 0
+    enemy_cars = []
+    speed_time = 0
+    distance = 0
+
+    highscores = HighScore() #highscore class
+
+    clock = pygame.time.Clock()
+    run = True
+
+    while run:
+        clock.tick(FPS)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                highscores.save_high_score()
+                run = False
+                pygame.quit()
+
+            if event.type == YELLOW_HIT:
+                yellow_health -= 1
+
+            if event.type == SPAWN_CAR:
+                img = random.choice(ENEMY_CAR_IMAGES)
+                rect = img.get_rect()
+                rect.x = WIDTH + random.randint(10, 100)
+                rect.y = random.choice(LANE_Y_POSITIONS) - CAR_HEIGHT//2
+                enemy_cars.append({"rect": rect, "image": img})
+
+        if yellow_health <= 0:
+            highscores.save_high_score()
+            CrashScreen.draw_whencrashed("You Crashed!")
+            break
+
+        #scroll speed increase by time value and limit at 30
+        speed_time += 0.0013
+        SCROLL_SPEED = min(6 + speed_time**2, 30)
+
+        bg_x -= SCROLL_SPEED
+        if bg_x <= -WIDTH:
+            bg_x = 0
+
+        for car in enemy_cars:
+            car["rect"].x -= SCROLL_SPEED
+
+        #distance and highscore updater
+        distance += SCROLL_SPEED * 0.12
+        highscores.update(distance)
+
+        enemy_cars = [c for c in enemy_cars if c["rect"].right > 0]
+
+        #car collision detection and health decrease for player car
+        for car in enemy_cars[:]:
+            if abs(yellow.centery - car["rect"].centery) < 25 and yellow.colliderect(car["rect"]):
+                yellow_health -= 1
+                enemy_cars.remove(car)
+                break
+
+        keys = pygame.key.get_pressed()
+
+        Player.yellow_handle_movement(keys, yellow)
+
+        DrawWindow.draw_window(yellow, yellow_health, enemy_cars, bg_x, distance, highscores.high_score)
+
+if __name__ == "__main__":
+    main()
