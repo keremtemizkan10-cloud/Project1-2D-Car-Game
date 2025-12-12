@@ -46,7 +46,7 @@ HEALTH_FONT = pygame.font.SysFont('comic sans', 40)
 CRASHED_FONT = pygame.font.SysFont('comic sans', 100)
 
 #crash screen breaking image
-CRASH_IMAGE = pygame.image.load(os.path.join("Assets", '58e9209beb97430e8190650e.png')).convert_alpha()
+CRASH_IMAGE = pygame.image.load(os.path.join("Assets", 'crash_screen_image.png')).convert_alpha()
 
 #game settings and car speed (36 VEL keeps the car exactly in between 2 lanes when move keys pressed)
 FPS = 60
@@ -58,22 +58,26 @@ CAR_WIDTH, CAR_HEIGHT = 200, 120
 
 # load cars
 BLUE_CAR = pygame.transform.scale(
-    pygame.image.load(os.path.join('Assets', 'Retro_Blue_Compact_Car_in_Pixel_Art-removebg-preview.png')),
+    pygame.image.load(os.path.join('Assets', 'blue_car.png')),
     (CAR_WIDTH, CAR_HEIGHT))
 
 RED_CAR = pygame.transform.scale(
-    pygame.image.load(os.path.join('Assets', 'ChatGPT_Image_Dec_4__2025__01_45_35_AM-removebg-preview.png')),
+    pygame.image.load(os.path.join('Assets', 'red_car.png')),
     (CAR_WIDTH, CAR_HEIGHT))
 
 GREEN_CAR = pygame.transform.scale(
-    pygame.image.load(os.path.join('Assets', 'ChatGPT_Image_Dec_4__2025__01_52_49_AM-removebg-preview.png')),
+    pygame.image.load(os.path.join('Assets', 'green_car.png')),
     (CAR_WIDTH, CAR_HEIGHT))
 
 YELLOW_CAR = pygame.transform.scale(
-    pygame.image.load(os.path.join('Assets', 'Pixel_Art_Yellow_Compact_Car-removebg-preview.png')),
+    pygame.image.load(os.path.join('Assets', 'yellow_car.png')),
     (CAR_WIDTH, CAR_HEIGHT))
 
-ENEMY_CAR_IMAGES = [BLUE_CAR, RED_CAR, GREEN_CAR]
+WHITE_CAR = pygame.transform.scale(
+    pygame.image.load(os.path.join('Assets', 'white_car.png')),
+    (CAR_WIDTH, CAR_HEIGHT))
+
+ENEMY_CAR_IMAGES = [BLUE_CAR, RED_CAR, GREEN_CAR, WHITE_CAR]
 
 # events = car spawning and collision detector
 YELLOW_HIT = pygame.USEREVENT + 1
