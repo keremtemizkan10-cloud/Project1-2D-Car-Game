@@ -85,7 +85,7 @@ SPAWN_CAR = pygame.USEREVENT + 3
 pygame.time.set_timer(SPAWN_CAR, 1500)
 
 SPACE = pygame.transform.scale(
-    pygame.image.load(os.path.join('Assets', 'Background.png')),
+    pygame.image.load(os.path.join('Assets', 'background.png')),
     (WIDTH, HEIGHT)
 )
 
